@@ -1,4 +1,4 @@
-package com.hust.chatbot.controller;
+package com.hust.chatbot.util;
 
 
 import java.security.MessageDigest;
@@ -13,7 +13,7 @@ import java.util.Arrays;
  */
 public class SignUtil {
     // 与接口配置信息中的Token要一致
-    private static String token = "weixinCore";
+    private static String token = "12345";
 
     /**
      * 验证签名
