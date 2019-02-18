@@ -2,9 +2,7 @@ package com.hust.chatbot.util;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 
 import javax.servlet.http.HttpServletRequest;
@@ -32,6 +30,9 @@ public class MessageUtil {
     public static final String MESSAGE_UNSUBSCRIBE="unsubscribe";
     public static final String MESSAGE_CLICK="CLICK";
     public static final String MESSAGE_VIEW="VIEW";
+    private static final int MESSAGE_CACHE_SIZE = 1000;
+    private static List<TextMessage> MESSAGE_CACHE = new ArrayList<TextMessage>(MESSAGE_CACHE_SIZE);
+
     public static Map<String,String>xmlToMap(HttpServletRequest request) throws IOException, DocumentException{
         //创建一个集合
         Map<String, String> map=new HashMap<String, String>();
@@ -57,6 +58,37 @@ public class MessageUtil {
         xstream.alias("xml", textMessage.getClass()) ;
         return xstream.toXML(textMessage);
     }
+
+    //判断微信请求是否重复（微信服务器在五秒内收不到响应会断掉连接，并且重新发起请求，总共重试三次）
+    public static boolean isDuplicate(Map<String, String> map) {
+        String fromUserName = map.get("FromUserName");
+        String createTime = map.get("CreateTime");
+        String msgId = map.get("MsgId");
+
+        TextMessage textMessage = new TextMessage();
+
+        if (msgId != null) {
+            textMessage.setMsgId(msgId);
+        } else {
+            textMessage.setCreateTime(Long.parseLong(createTime));
+            textMessage.setFromUserName(fromUserName);
+        }
+
+        if (MESSAGE_CACHE.contains(textMessage)) {
+            // 缓存中存在，直接pass
+            return true;
+        } else {
+            setMessageToCache(textMessage);
+            return false;
+        }
+    }
+    private static void setMessageToCache(TextMessage textMessage) {
+        if (MESSAGE_CACHE.size() >= MESSAGE_CACHE_SIZE) {
+            MESSAGE_CACHE.remove(0);
+        }
+        MESSAGE_CACHE.add(textMessage);
+    }
+
     /*
      * 主菜单
      */

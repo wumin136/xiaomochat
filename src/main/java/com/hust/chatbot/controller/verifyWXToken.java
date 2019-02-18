@@ -11,6 +11,8 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.util.Date;
 import java.util.Map;
 
@@ -61,8 +63,25 @@ public class verifyWXToken extends HttpServlet {
             String toUserName = map.get("ToUserName");//开发者微信号
             String msgType = map.get("MsgType");//text//如果是文本消息的话，MsgType="text"
             String content = map.get("Content");//文本消息内容
+            String MsgId = map.get("MsgId");//消息ID
 
+            String line;
+            String lines = "";
             String message = null;
+
+            //执行python脚本———聊天
+            Process proc;
+            String[] args = new String[] {"python","D:\\python\\code\\chatbot_by_similarity\\demo\\demo_knowledge_ask&answer.py",content};
+            proc = Runtime.getRuntime().exec(args);
+
+            //使用缓冲流接受程序返回的结果
+            BufferedReader in = new BufferedReader(new InputStreamReader(proc.getInputStream(),"GBK"));//注意格式
+            while((line = in.readLine())!=null) {
+                lines += (line + "\n");
+            }
+            in.close();
+            proc.waitFor();
+
             //判断是否为文本消息
             if("text".equals(msgType)) {
                 TextMessage text = new TextMessage();
@@ -70,20 +89,24 @@ public class verifyWXToken extends HttpServlet {
                 text.setToUserName(fromUserName);
                 text.setMsgType("text");//文本类型
                 text.setCreateTime(new Date().getTime());//当前时间
-                text.setContent("您发送的消息是：" + content);//返回消息
-                //将文本消息转换为xml
+                text.setContent(lines);//返回消息
+                text.setMsgId(MsgId);//消息ID
 
+                //排重
+                boolean isDuplicate = MessageUtil.isDuplicate(map);
+                if(isDuplicate)
+                    return;
+
+                //将文本消息转换为xml
                 message = MessageUtil.textMessageToXml(text);
 
                 System.out.println(message);
             }
-
             out.print(message);//返回消息
-        } catch (DocumentException e) {
+        } catch (InterruptedException | DocumentException e) {
             e.printStackTrace();
         } finally {
             out.close();
         }
     }
-
 }
